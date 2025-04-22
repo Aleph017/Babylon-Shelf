@@ -46,4 +46,4 @@ I've spent a little bit more time working on C++ version, so there are 2 flags:
   * `-q || --quiet` if you don't want the program to print in output while it searches your word
 
 And also you can specify the word to look for from CLI:
-`shelf [one flag] [your word]`
+`shelf [your flags] [your word]`
