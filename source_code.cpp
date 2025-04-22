@@ -1,62 +1,134 @@
 #include <iostream>
+#include <array>
+#include <chrono>
+#include <thread>
 #include <string>
-#include <cstdlib>
-#include <ctime>
+#include <random>
+#include <atomic>
+#include <iomanip>
+#include <csignal>
 #include <locale>
-#include <vector>
-#include <algorithm>
 
-const std::string letters = "абвгдеёжзийклмнопрстуфхцчшщъыьэюяabcdefghijklmnopqrstuvwxyz";
+using namespace std;
 
-std::string to_lowercase(const std::string& str) {
-    std::string lower_str;
-    std::locale loc;
-    for (char c : str) {
-        lower_str += std::tolower(c, loc);
-    }
-    return lower_str;
+//declaring global variables to make this work
+atomic<bool> stopAnim(false);
+bool russianLang = false;
+bool gotQueryfromCli = false;
+string query = "";
+bool quiet = false;
+
+//function that gives cursor back if ctrl+c pressed
+void shukher(int signal){
+	if(signal == SIGINT){
+		cout << "\033[?25h" << "\n" << flush;
+		exit(0);
+	}
 }
 
-int babylon_shelf(const std::string& goal_word) {
-    int counter = 0;
-    std::string idk;
-    std::srand(static_cast<unsigned>(std::time(0)));
-    
-    while (true) {
-        idk.clear();
-        for (size_t i = 0; i < goal_word.length(); ++i) {
-            idk += letters[std::rand() % letters.size()];
-        }
-        counter++;
-        /*if (counter % 1000000 == 0) {
-            std::cout << "1,000,000 символов было перебраною" << std::endl;
-        }*/
-        if (to_lowercase(idk) == to_lowercase(goal_word)) {
-            return counter;
-        }
-    }
+//function that prints smth in terminal to let the user know that programm is still running
+void standbyAnim(){
+	cout << "\033[?25l";
+	while(!stopAnim){
+		array<string, 4> animation = {"   ", ".  ", ".. ", "..."};
+		if(russianLang){
+			for(int i = 0; i < animation.size(); i++){
+				if(stopAnim) break;
+				cout << "\rПроисходит перебор" << animation[i] << flush;
+				this_thread::sleep_for(chrono::milliseconds(500));
+			}
+		}else{
+			for(int i = 0; i < animation.size(); i++){
+				if(stopAnim) break;
+				cout << "\rProcessing" << animation[i] << flush;
+				this_thread::sleep_for(chrono::milliseconds(500));
+			}
+		}
+	}
+	cout << "\033[?25h";
 }
 
-int main() {
-    setlocale(LC_ALL, "Russian");
+//main function
+void shelf(){
+	random_device rd;
+	mt19937 gen(rd());
+	string alphabet;
+	if(russianLang){
+		alphabet = "абвгдежзийклмнопрстуфхцчшщъыьэюя";
+	}else{
+		alphabet = "abcdefghijklmnopqrstuvwxyz";
+	}
+	uniform_int_distribution<> dis(0, alphabet.size()-1);
+	
+  if(!gotQueryfromCli){
+	  if(russianLang){
+		  cout << "В Вавилонской библиотеке можно найти любую информацию, но это займёт некоторое время. Какое слово Вам нужно найти?\nВведите слово: ";
+	  }else{
 
-    std::cout << "Добро пожаловать в одну из полок Вавилонской Библиотеки! Здесь можно найти любое слово, но чем оно длинее, тем больше времени понадобится - одно слово можно искать тысячи лет(!)" << std::endl;
+		  cout << "In Babylon Library you can find any information. But it would take some time. What word do you want to find?\nEnter the word: ";
+	  }
+	  cin >> query;
+  }else{
+    if(russianLang){
+      cout << "Получено слово как аргумент...\n";
+    }else{
+      cout << "An argument taken as a word to find...\n";
+    }
+  }
+	
+	clock_t start_time = clock();
+  
+  thread standingBy;
+	if(!quiet) standingBy = thread(standbyAnim);
 
-    std::string goal_word;
-    std::cout << "Какое слово вы хотите найти? ";
-    std::getline(std::cin, goal_word);
+	for(char& c : query){
+		c = tolower(c);
+	}
 
-    // Запоминаем текущее время до выполнения функции
-    clock_t start_time = clock();
+	unsigned int attempts = 0;
 
-    int attempts = babylon_shelf(goal_word);
+	while(true){
+		string result = "";
+		for(int i = 0; i < query.size(); i++){
+			result += alphabet[dis(gen)];
+			attempts++;
+		}
+		if(result == query){ //i could move this atrocuty into a function to make the code prettier 
+			if(!quiet) stopAnim = true;
+			clock_t end_time = clock();
+			double execution_time = double(end_time - start_time) / CLOCKS_PER_SEC;
+			int speed = int(attempts/execution_time);
+			cout.imbue(locale("en_US.UTF-8"));
+			cout << fixed << setprecision(2);
+			if(russianLang){
+				cout << "\rСлово '" << query <<"' было найдено! Понадобилось перебрать " << attempts <<" букв и "<< execution_time <<" секунд.\nСредняя скорость перебора = " << speed <<" символов в секунду.\n";
+			}else{
+				cout << "\rThe word '" << query << "' was found!\nIt took " << attempts << " letters and " << execution_time << " seconds!\nAverage combination speed = " << speed << " letters per second.\n";
+			}
+			break;
+		}
+	}
+	if(!quiet) standingBy.join();
+}
 
-    // Запоминаем текущее время после выполнения функции
-    clock_t end_time = clock();
+int main(int argc, char* argv[]){
+	if(argc > 1){
+    for(int i = 1; i < argc; i++){
+		  string arg = argv[i];
+		  if(arg == "--russian" || arg == "-r"){
+			  russianLang = true;
+		  } else if(arg == "--quiet" || arg == "-q"){
+        quiet = true;
+      }else {
+        gotQueryfromCli = true;
+        query = arg;
+      }
 
-    double execution_time = double(end_time - start_time) / CLOCKS_PER_SEC;
+    }
+	}
 
-    std::cout << "Слово " << goal_word << " было найдено! Для этого понадобилось перебрать " << attempts << " символов, это заняло " << execution_time << " секунд." << std::endl;
 
-    return 0;
+	signal(SIGINT, shukher);
+	shelf();
+	return 0;
 }
