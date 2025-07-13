@@ -1,6 +1,6 @@
 # Babylon Shelf
 
-This is a silly project that imitates Library of Babel. Python and C++ versions are present.
+This is a silly project that imitates Library of Babel. Python, C++ and Java versions are present.
 
 # How to run it?
 
@@ -35,11 +35,25 @@ g++ source_code.cpp -o shelf
 shelf [-r|-q] [word to find]
 ```
 
+## Java version
+1. Compile `.java` files with `javac`:
+```
+cd java_src
+javac ./*.java
+```
+
+2. Run `Main.class` file:
+```
+java ./Main.class
+```
+
 # What does it do?
 
 It asks the user a word to find and then generates random "words" until the generated one is identical to user's word.
 
 Python version is very slow, because it's Python, and it's not very advanced.
+
+Java version is fast, but also not fancy.
 
 I've spent a little bit more time working on C++ version, so there are 2 flags:
   * `-r || --russian` if you ever want to see russian text or find a russian word
